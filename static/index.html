@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SlopeSense — Landslide Early Warning</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{
+    --bg:#12161a;
+    --panel:#1b2126;
+    --panel-alt:#232a30;
+    --border:#333c43;
+    --text:#e9ebe6;
+    --text-mute:#93a0a8;
+    --text-dim:#5f6b72;
+    --accent:#5aa39a;
+    --accent-dim:#2f4744;
+    --low:#5f9e5c;
+    --low-bg:#1c2a1c;
+    --mod:#d6a13c;
+    --mod-bg:#2c2416;
+    --high:#d97a35;
+    --high-bg:#2e2013;
+    --crit:#d1483f;
+    --crit-bg:#301715;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:14px;
+    line-height:1.6;
+  }
+  h1,h2,h3{font-family:'Space Grotesk',sans-serif;font-weight:600;margin:0;}
+
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:18px 28px;
+    border-bottom:1px solid var(--border);
+    background:var(--panel);
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-mark{
+    width:34px;height:34px;border-radius:8px;
+    background:var(--accent-dim);
+    display:flex;align-items:center;justify-content:center;
+    border:1px solid var(--accent);
+  }
+  .brand-mark svg{width:18px;height:18px;}
+  .brand h1{font-size:17px;letter-spacing:0.2px;}
+  .brand p{margin:0;color:var(--text-mute);font-size:12px;}
+
+  .status{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-mute);}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--low);}
+  .dot.live{animation:pulse 1.6s ease-in-out infinite;}
+  @media (prefers-reduced-motion:no-preference){
+    @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+  }
+
+  .controls{display:flex;gap:10px;}
+  button{
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:13px;
+    font-weight:500;
+    padding:9px 16px;
+    border-radius:6px;
+    border:1px solid var(--border);
+    background:var(--panel-alt);
+    color:var(--text);
+    cursor:pointer;
+    transition:border-color .15s ease;
+  }
+  button:hover{border-color:var(--accent);}
+  button:disabled{opacity:0.5;cursor:default;}
+  button.primary{background:var(--accent-dim);border-color:var(--accent);color:var(--text);}
+  button.primary.active{background:var(--crit-bg);border-color:var(--crit);color:#f2d9d6;}
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+  main{
+    display:grid;
+    grid-template-columns:340px 1fr;
+    gap:20px;
+    padding:20px 28px;
+    max-width:1280px;
+    margin:0 auto;
+  }
+  @media (max-width:880px){
+    main{grid-template-columns:1fr;}
+  }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:18px;
+  }
+  .panel-title{
+    display:flex;
+    justify-content:space-between;
+    font-size:12px;
+    color:var(--text-mute);
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    margin-bottom:14px;
+  }
+  .panel-title .db-tag{
+    font-family:'IBM Plex Mono',monospace;
+    text-transform:none;
+    letter-spacing:0;
+    color:var(--text-dim);
+  }
+
+  .stations-wrap{display:flex;flex-direction:column;gap:2px;}
+  .station-btn{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    width:100%;
+    text-align:left;
+    background:transparent;
+    border:1px solid transparent;
+    border-radius:8px;
+    padding:11px 10px;
+  }
+  .station-btn:hover{background:var(--panel-alt);}
+  .station-btn.selected{background:var(--panel-alt);border-color:var(--border);}
+  .station-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+  .station-info{flex:1;min-width:0;}
+  .station-name{font-size:13px;font-weight:500;}
+  .station-sub{font-size:11.5px;color:var(--text-mute);}
+  .station-badge{
+    font-size:11px;
+    padding:3px 8px;
+    border-radius:20px;
+    font-weight:500;
+    white-space:nowrap;
+  }
+
+  .detail-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    margin-bottom:18px;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  .detail-header h2{font-size:19px;margin-bottom:4px;}
+  .detail-header p{color:var(--text-mute);font-size:12.5px;margin:0;}
+
+  .risk-pill{
+    padding:8px 16px;
+    border-radius:8px;
+    font-size:13px;
+    font-weight:600;
+    text-align:center;
+    min-width:120px;
+  }
+  .risk-pill .num{font-size:20px;font-family:'IBM Plex Mono',monospace;display:block;margin-bottom:2px;}
+
+  .metrics-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:12px;
+    margin-bottom:18px;
+  }
+  .metric{
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:12px 14px;
+  }
+  .metric-label{font-size:11px;color:var(--text-mute);margin-bottom:6px;}
+  .metric-val{font-family:'IBM Plex Mono',monospace;font-size:18px;}
+  .metric-unit{font-size:11px;color:var(--text-mute);margin-left:3px;}
+
+  .ai-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;}
+  .ai-card{background:var(--panel-alt);border:1px solid var(--border);border-radius:8px;padding:13px 14px;}
+  .ai-card h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mute);margin-bottom:8px;}
+  .ai-big{font-family:'IBM Plex Mono',monospace;font-size:25px;}
+  .ai-small{font-size:11.5px;color:var(--text-mute);}
+  .factor{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11.5px;}
+  .factor:last-child{border-bottom:0;}
+  .action-box{margin-top:10px;padding:9px 10px;border-radius:7px;background:var(--accent-dim);font-size:12px;}
+  #riskMap{height:300px;border-radius:8px;overflow:hidden;border:1px solid var(--border);margin-bottom:18px;}
+  @media(max-width:700px){.ai-grid{grid-template-columns:1fr;}}
+
+  .chart-wrap{
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:14px;
+    height:200px;
+    margin-bottom:18px;
+  }
+
+  .alerts-wrap{max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px;}
+  .alert-row{
+    display:flex;
+    gap:12px;
+    align-items:flex-start;
+    padding:10px 12px;
+    border-radius:8px;
+    background:var(--panel-alt);
+    border-left:3px solid var(--border);
+    font-size:12.5px;
+  }
+  .alert-time{color:var(--text-dim);font-family:'IBM Plex Mono',monospace;font-size:11px;white-space:nowrap;padding-top:1px;}
+  .alert-body b{font-weight:600;}
+  .alert-empty{color:var(--text-dim);font-size:12.5px;padding:8px 2px;}
+
+  .foot-note{
+    max-width:1280px;
+    margin:0 auto;
+    padding:0 28px 28px;
+    color:var(--text-dim);
+    font-size:11.5px;
+  }
+
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.6"><path d="M3 20l6-13 4 8 3-6 5 11z"/></svg>
+    </div>
+    <div>
+      <h1>SlopeSense</h1>
+      <p>Landslide early warning — Shillong–Guwahati corridor, Meghalaya</p>
+    </div>
+  </div>
+  <div class="status">
+    <span class="dot live" id="statusDot"></span>
+    <span id="statusText">Connecting to server…</span>
+  </div>
+  <div class="controls">
+    <button class="primary" id="simBtn" disabled>Simulate rainfall event</button>
+    <button id="resetBtn" disabled>Reset</button>
+  </div>
+</header>
+
+<main>
+  <section class="panel">
+    <div class="panel-title"><span>Monitoring stations</span><span class="db-tag" id="tickTag">tick 0</span></div>
+    <div class="stations-wrap" id="stationList"></div>
+  </section>
+
+  <section>
+    <div class="panel" style="margin-bottom:20px;">
+      <div class="detail-header">
+        <div>
+          <h2 id="detailName">—</h2>
+          <p id="detailSub">—</p>
+        </div>
+        <div class="risk-pill" id="riskPill">
+          <span class="num" id="riskNum">—</span>
+          <span id="riskLabel">—</span>
+        </div>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric">
+          <div class="metric-label">Rainfall, last 72h</div>
+          <div class="metric-val"><span id="mRain72">—</span><span class="metric-unit">mm</span></div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Rainfall intensity</div>
+          <div class="metric-val"><span id="mIntensity">—</span><span class="metric-unit">mm/hr</span></div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Soil moisture</div>
+          <div class="metric-val"><span id="mMoisture">—</span><span class="metric-unit">%</span></div>
+        </div>
+      </div>
+
+      <div class="panel-title"><span>AI early-warning prediction</span><span class="db-tag">demo ML model</span></div>
+      <div class="ai-grid">
+        <div class="ai-card">
+          <h3>Landslide probability</h3>
+          <div class="ai-big" id="aiProbability">—</div>
+          <div class="ai-small" id="aiWindow">Prediction window: —</div>
+          <div class="action-box" id="aiAction">—</div>
+        </div>
+        <div class="ai-card">
+          <h3>Why this prediction?</h3>
+          <div id="aiFactors"><div class="ai-small">Loading…</div></div>
+        </div>
+      </div>
+
+      <div class="panel-title"><span>Regional risk map</span><span class="db-tag">monitoring stations</span></div>
+      <div id="riskMap"></div>
+
+      <div class="panel-title"><span>Risk trend</span><span class="db-tag">from database, per station</span></div>
+      <div class="chart-wrap"><canvas id="riskChart"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span>Alert feed</span><span class="db-tag">stored in alerts table</span></div>
+      <div class="alerts-wrap" id="alertFeed">
+        <div class="alert-empty">Loading…</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<p class="foot-note">Prototype for SIH demonstration. The dashboard now combines server-side monitoring with a lightweight logistic-regression ML model, an explainable risk view, a regional map, forecast-style inputs, and recommended actions. The ML model is trained on synthetic labelled examples for demonstration; replace it with real historical landslide/sensor data before operational use. Rainfall and soil values remain simulated in this prototype.</p>
+
+<script>
+const RISK_COLORS = {
+  Low:      { color:'var(--low)',  bg:'var(--low-bg)'  },
+  Moderate: { color:'var(--mod)',  bg:'var(--mod-bg)'  },
+  High:     { color:'var(--high)', bg:'var(--high-bg)' },
+  Critical: { color:'var(--crit)', bg:'var(--crit-bg)' },
+};
+
+let state = null;
+let selectedId = null;
+let simRunning = false;
+let simTimer = null;
+let chart = null;
+let riskMap = null;
+let mapMarkers = {};
+
+async function fetchState(){
+  const res = await fetch('/api/state');
+  state = await res.json();
+  if(!selectedId) selectedId = state.stations[0].id;
+  renderAll();
+}
+
+// Matches the default SLOPESENSE_API_KEY in main.py. If you set a real key
+// via the SLOPESENSE_API_KEY environment variable on the server, update
+// this value to match, or the Reset button will get a 401 error.
+const API_KEY = 'demo-key-change-me';
+
+async function postJSON(path){
+  const res = await fetch(path, { method:'POST', headers: { 'X-API-Key': API_KEY } });
+  state = await res.json();
+  renderAll();
+}
+
+function getSelected(){
+  return state.stations.find(s => s.id === selectedId);
+}
+
+function renderStationList(){
+  const wrap = document.getElementById('stationList');
+  wrap.innerHTML = '';
+  state.stations.forEach(s => {
+    const c = RISK_COLORS[s.level];
+    const btn = document.createElement('button');
+    btn.className = 'station-btn' + (s.id === selectedId ? ' selected' : '');
+    btn.onclick = () => { selectedId = s.id; renderAll(); };
+    btn.innerHTML = `
+      <span class="station-dot" style="background:${c.color}"></span>
+      <span class="station-info">
+        <span class="station-name">${s.name}</span><br>
+        <span class="station-sub">${s.desc}</span>
+      </span>
+      <span class="station-badge" style="background:${c.bg};color:${c.color}">${s.level}</span>
+    `;
+    wrap.appendChild(btn);
+  });
+  document.getElementById('tickTag').textContent = 'tick ' + state.tick;
+}
+
+function renderDetail(){
+  const s = getSelected();
+  const c = RISK_COLORS[s.level];
+
+  document.getElementById('detailName').textContent = s.name;
+  document.getElementById('detailSub').textContent = s.desc;
+  document.getElementById('mRain72').textContent = s.rain72.toFixed(0);
+  document.getElementById('mIntensity').textContent = s.intensity.toFixed(1);
+  document.getElementById('mMoisture').textContent = s.moisture.toFixed(0);
+
+  const pill = document.getElementById('riskPill');
+  pill.style.background = c.bg;
+  pill.style.color = c.color;
+  document.getElementById('riskNum').textContent = (s.risk*100).toFixed(0) + '%';
+  document.getElementById('riskLabel').textContent = s.level + ' risk';
+}
+
+function renderAlerts(){
+  const feed = document.getElementById('alertFeed');
+  if(state.alerts.length === 0){
+    feed.innerHTML = '<div class="alert-empty">No alerts yet. Run a rainfall simulation to see the system trigger warnings.</div>';
+    return;
+  }
+  feed.innerHTML = state.alerts.map(a => `
+    <div class="alert-row" style="border-left-color:${RISK_COLORS[a.level].color}">
+      <span class="alert-time">${new Date(a.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</span>
+      <span class="alert-body"><b>${a.station_name}</b> — ${a.message}</span>
+    </div>
+  `).join('');
+}
+
+function initChart(){
+  const ctx = document.getElementById('riskChart');
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: [], datasets: [{
+      label: 'Risk score', data: [],
+      borderColor: '#5aa39a', backgroundColor: 'rgba(90,163,154,0.12)',
+      borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3,
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: { duration: 200 },
+      scales: {
+        y: { min:0, max:1, ticks:{ color:'#93a0a8', callback:v=>(v*100)+'%' }, grid:{ color:'#333c43' } },
+        x: { ticks:{ color:'#93a0a8', maxTicksLimit:6 }, grid:{ display:false } }
+      },
+      plugins: { legend: { display:false } }
+    }
+  });
+}
+
+function updateChart(){
+  const s = getSelected();
+  chart.data.labels = s.history.map(h => h.tick);
+  chart.data.datasets[0].data = s.history.map(h => h.risk);
+  chart.update('none');
+}
+
+function updateStatusBar(){
+  const worst = state.stations.reduce((a,b) => b.risk > a.risk ? b : a);
+  const c = RISK_COLORS[worst.level];
+  document.getElementById('statusText').textContent =
+    worst.level === 'Low' ? 'Monitoring — baseline conditions' :
+    `Elevated activity — ${worst.name} at ${worst.level.toLowerCase()} risk`;
+  document.getElementById('statusDot').style.background = c.color;
+}
+
+function initMap(){
+  riskMap = L.map('riskMap').setView([25.88, 91.90], 8);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap contributors'}).addTo(riskMap);
+}
+
+function renderMap(){
+  if(!riskMap) return;
+  state.stations.forEach(s => {
+    const c = RISK_COLORS[s.level].color;
+    const popup = `<b>${s.name}</b><br>Risk: ${s.level} (${(s.ai_probability*100).toFixed(0)}%)<br>Rainfall 72h: ${s.rain72.toFixed(0)} mm<br>Soil moisture: ${s.moisture.toFixed(0)}%<br>Slope: ${s.slope_angle}°`;
+    if(mapMarkers[s.id]){ mapMarkers[s.id].setLatLng([s.lat,s.lon]).setStyle({fillColor:c,color:c}).setPopupContent(popup); }
+    else { mapMarkers[s.id] = L.circleMarker([s.lat,s.lon], {radius:10, color:c, fillColor:c, fillOpacity:.75, weight:2}).addTo(riskMap).bindPopup(popup); }
+  });
+}
+
+function renderAI(){
+  const s = getSelected();
+  const c = RISK_COLORS[s.ai_level] || RISK_COLORS[s.level];
+  document.getElementById('aiProbability').textContent = (s.ai_probability*100).toFixed(0) + '%';
+  document.getElementById('aiProbability').style.color = c.color;
+  document.getElementById('aiWindow').textContent = 'Prediction window: ' + s.prediction_window + ' · ' + s.ai_level + ' risk';
+  document.getElementById('aiAction').textContent = 'Recommended action: ' + s.action;
+  document.getElementById('aiFactors').innerHTML = s.ai_factors.map(f => `<div class="factor"><span>${f.factor}</span><b>${f.impact >= 0 ? '+' : ''}${f.impact}</b></div>`).join('');
+}
+
+function renderAll(){
+  renderStationList();
+  renderDetail();
+  renderAI();
+  renderMap();
+  updateChart();
+  renderAlerts();
+  updateStatusBar();
+}
+
+function toggleSim(){
+  simRunning = !simRunning;
+  const btn = document.getElementById('simBtn');
+  if(simRunning){
+    btn.textContent = 'Stop simulation';
+    btn.classList.add('active');
+    simTimer = setInterval(() => postJSON('/api/simulate/step'), 1200);
+  } else {
+    btn.textContent = 'Simulate rainfall event';
+    btn.classList.remove('active');
+    clearInterval(simTimer);
+  }
+}
+
+async function resetAll(){
+  if(simRunning) toggleSim();
+  await postJSON('/api/reset');
+}
+
+document.getElementById('simBtn').addEventListener('click', toggleSim);
+document.getElementById('resetBtn').addEventListener('click', resetAll);
+
+initChart();
+initMap();
+fetchState().then(() => {
+  document.getElementById('simBtn').disabled = false;
+  document.getElementById('resetBtn').disabled = false;
+});
+</script>
+
+</body>
+</html>
