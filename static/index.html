@@ -5,29 +5,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SlopeSense — Landslide Early Warning</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   :root{
-    --bg:#12161a;
-    --panel:#1b2126;
-    --panel-alt:#232a30;
-    --border:#333c43;
-    --text:#e9ebe6;
-    --text-mute:#93a0a8;
-    --text-dim:#5f6b72;
-    --accent:#5aa39a;
-    --accent-dim:#2f4744;
-    --low:#5f9e5c;
-    --low-bg:#1c2a1c;
-    --mod:#d6a13c;
-    --mod-bg:#2c2416;
-    --high:#d97a35;
-    --high-bg:#2e2013;
-    --crit:#d1483f;
-    --crit-bg:#301715;
+    --bg:#0b0f14;
+    --panel:#11161d;
+    --panel-alt:#171e27;
+    --border:#262f3a;
+    --text:#e7edf2;
+    --text-mute:#8291a0;
+    --text-dim:#546575;
+    --accent:#22c7d6;
+    --accent-dim:#123238;
+    --low:#4ade80;
+    --low-bg:#132318;
+    --mod:#eab308;
+    --mod-bg:#2a2211;
+    --high:#f97316;
+    --high-bg:#2c1c10;
+    --crit:#ef4444;
+    --crit-bg:#2e1414;
   }
   *{box-sizing:border-box;}
   body{
@@ -39,12 +39,13 @@
     line-height:1.6;
   }
   h1,h2,h3{font-family:'Space Grotesk',sans-serif;font-weight:600;margin:0;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
 
   header{
     display:flex;
     align-items:center;
     justify-content:space-between;
-    padding:18px 28px;
+    padding:16px 28px;
     border-bottom:1px solid var(--border);
     background:var(--panel);
     flex-wrap:wrap;
@@ -52,12 +53,12 @@
   }
   .brand{display:flex;align-items:center;gap:12px;}
   .brand-mark{
-    width:34px;height:34px;border-radius:8px;
+    width:36px;height:36px;border-radius:9px;
     background:var(--accent-dim);
     display:flex;align-items:center;justify-content:center;
     border:1px solid var(--accent);
   }
-  .brand-mark svg{width:18px;height:18px;}
+  .brand-mark svg{width:19px;height:19px;}
   .brand h1{font-size:17px;letter-spacing:0.2px;}
   .brand p{margin:0;color:var(--text-mute);font-size:12px;}
 
@@ -86,13 +87,25 @@
   button.primary{background:var(--accent-dim);border-color:var(--accent);color:var(--text);}
   button.primary.active{background:var(--crit-bg);border-color:var(--crit);color:#f2d9d6;}
   button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  #alertCount{font-family:'IBM Plex Mono',monospace;font-size:11px;margin-left:4px;color:var(--accent);}
+
+  .topstrip{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    padding:9px 28px;
+    background:var(--panel-alt);
+    border-bottom:1px solid var(--border);
+    font-size:12px;color:var(--text-mute);
+  }
+  .topstrip-dot{width:6px;height:6px;border-radius:50%;background:var(--low);flex-shrink:0;}
+  .topstrip-sep{color:var(--text-dim);}
+  .topstrip b{color:var(--text);font-weight:600;}
 
   main{
     display:grid;
     grid-template-columns:340px 1fr;
     gap:20px;
     padding:20px 28px;
-    max-width:1280px;
+    max-width:1320px;
     margin:0 auto;
   }
   @media (max-width:880px){
@@ -121,11 +134,11 @@
     color:var(--text-dim);
   }
 
-  .stations-wrap{display:flex;flex-direction:column;gap:2px;}
+  .stations-wrap{display:flex;flex-direction:column;gap:4px;}
   .station-btn{
     display:flex;
-    align-items:center;
-    gap:12px;
+    flex-direction:column;
+    gap:6px;
     width:100%;
     text-align:left;
     background:transparent;
@@ -135,7 +148,8 @@
   }
   .station-btn:hover{background:var(--panel-alt);}
   .station-btn.selected{background:var(--panel-alt);border-color:var(--border);}
-  .station-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+  .station-top{display:flex;align-items:center;gap:10px;}
+  .station-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
   .station-info{flex:1;min-width:0;}
   .station-name{font-size:13px;font-weight:500;}
   .station-sub{font-size:11.5px;color:var(--text-mute);}
@@ -143,9 +157,12 @@
     font-size:11px;
     padding:3px 8px;
     border-radius:20px;
-    font-weight:500;
+    font-weight:600;
     white-space:nowrap;
+    font-family:'IBM Plex Mono',monospace;
   }
+  .station-bar{height:4px;border-radius:3px;background:var(--border);overflow:hidden;}
+  .station-bar-fill{height:100%;border-radius:3px;transition:width .3s ease;}
 
   .detail-header{
     display:flex;
@@ -155,7 +172,16 @@
     gap:12px;
     flex-wrap:wrap;
   }
-  .detail-header h2{font-size:19px;margin-bottom:4px;}
+  .detail-header h2{font-size:19px;margin-bottom:4px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+  .station-code{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--accent);
+    background:var(--accent-dim);
+    border:1px solid var(--accent);
+    padding:2px 7px;
+    border-radius:5px;
+  }
   .detail-header p{color:var(--text-mute);font-size:12.5px;margin:0;}
 
   .risk-pill{
@@ -183,17 +209,43 @@
   .metric-label{font-size:11px;color:var(--text-mute);margin-bottom:6px;}
   .metric-val{font-family:'IBM Plex Mono',monospace;font-size:18px;}
   .metric-unit{font-size:11px;color:var(--text-mute);margin-left:3px;}
+  .metric-caption{font-size:10.5px;color:var(--text-dim);margin-top:6px;text-transform:uppercase;letter-spacing:.03em;}
+  .metric-caption.warn{color:var(--high);}
 
-  .ai-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;}
-  .ai-card{background:var(--panel-alt);border:1px solid var(--border);border-radius:8px;padding:13px 14px;}
-  .ai-card h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mute);margin-bottom:8px;}
-  .ai-big{font-family:'IBM Plex Mono',monospace;font-size:25px;}
-  .ai-small{font-size:11.5px;color:var(--text-mute);}
-  .factor{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11.5px;}
-  .factor:last-child{border-bottom:0;}
+  .ai-grid{display:grid;grid-template-columns:190px 1fr;gap:14px;margin-bottom:18px;}
+  .ai-card{background:var(--panel-alt);border:1px solid var(--border);border-radius:8px;padding:15px;}
+  .ai-card h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mute);margin-bottom:10px;}
+
+  .gauge-wrap{display:flex;flex-direction:column;align-items:center;text-align:center;}
+  .gauge-ring{
+    --pct:0; --ring-color:var(--accent);
+    width:132px;height:132px;border-radius:50%;
+    background:conic-gradient(var(--ring-color) calc(var(--pct)*1%), var(--border) 0);
+    display:flex;align-items:center;justify-content:center;
+    transition:background .3s ease;
+  }
+  .gauge-inner{
+    width:104px;height:104px;border-radius:50%;
+    background:var(--panel-alt);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+  }
+  .ai-big{font-family:'IBM Plex Mono',monospace;font-size:24px;}
+  .gauge-caption{font-size:9px;letter-spacing:.06em;color:var(--text-dim);margin-top:2px;}
+  .ai-small{font-size:11.5px;color:var(--text-mute);margin-top:10px;}
   .action-box{margin-top:10px;padding:9px 10px;border-radius:7px;background:var(--accent-dim);font-size:12px;}
+
+  .factor-row{padding:7px 0;border-bottom:1px solid var(--border);}
+  .factor-row:last-child{border-bottom:0;}
+  .factor-top{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;margin-bottom:5px;}
+  .factor-top b.pos{color:var(--high);}
+  .factor-top b.neg{color:var(--low);}
+  .factor-bar{height:5px;border-radius:3px;background:var(--border);overflow:hidden;}
+  .factor-bar-fill{height:100%;border-radius:3px;}
+  .factor-bar-fill.pos{background:var(--high);}
+  .factor-bar-fill.neg{background:var(--low);}
+
   #riskMap{height:300px;border-radius:8px;overflow:hidden;border:1px solid var(--border);margin-bottom:18px;}
-  @media(max-width:700px){.ai-grid{grid-template-columns:1fr;}}
+  @media(max-width:700px){.ai-grid{grid-template-columns:1fr;}.gauge-wrap{flex-direction:row;gap:14px;}}
 
   .chart-wrap{
     background:var(--panel-alt);
@@ -220,7 +272,7 @@
   .alert-empty{color:var(--text-dim);font-size:12.5px;padding:8px 2px;}
 
   .foot-note{
-    max-width:1280px;
+    max-width:1320px;
     margin:0 auto;
     padding:0 28px 28px;
     color:var(--text-dim);
@@ -249,9 +301,21 @@
   </div>
   <div class="controls">
     <button class="primary" id="simBtn" disabled>Simulate rainfall event</button>
+    <button id="alertBtn" disabled>Alerts <span id="alertCount">0</span></button>
     <button id="resetBtn" disabled>Reset</button>
   </div>
 </header>
+
+<div class="topstrip" id="topStrip">
+  <span class="topstrip-dot" id="tsDot"></span>
+  <span id="tsSystem">System online</span>
+  <span class="topstrip-sep">·</span>
+  <span><b id="tsStations">—</b> stations monitored</span>
+  <span class="topstrip-sep">·</span>
+  <span><b id="tsCritical">—</b> critical</span>
+  <span class="topstrip-sep">·</span>
+  <span><b id="tsHigh">—</b> high alert</span>
+</div>
 
 <main>
   <section class="panel">
@@ -263,7 +327,7 @@
     <div class="panel" style="margin-bottom:20px;">
       <div class="detail-header">
         <div>
-          <h2 id="detailName">—</h2>
+          <h2><span id="detailName">—</span><span class="station-code" id="detailCode"></span></h2>
           <p id="detailSub">—</p>
         </div>
         <div class="risk-pill" id="riskPill">
@@ -276,22 +340,29 @@
         <div class="metric">
           <div class="metric-label">Rainfall, last 72h</div>
           <div class="metric-val"><span id="mRain72">—</span><span class="metric-unit">mm</span></div>
+          <div class="metric-caption" id="mRain72Cap">—</div>
         </div>
         <div class="metric">
           <div class="metric-label">Rainfall intensity</div>
           <div class="metric-val"><span id="mIntensity">—</span><span class="metric-unit">mm/hr</span></div>
+          <div class="metric-caption" id="mIntensityCap">—</div>
         </div>
         <div class="metric">
           <div class="metric-label">Soil moisture</div>
           <div class="metric-val"><span id="mMoisture">—</span><span class="metric-unit">%</span></div>
+          <div class="metric-caption" id="mMoistureCap">—</div>
         </div>
       </div>
 
       <div class="panel-title"><span>AI early-warning prediction</span><span class="db-tag">demo ML model</span></div>
       <div class="ai-grid">
-        <div class="ai-card">
-          <h3>Landslide probability</h3>
-          <div class="ai-big" id="aiProbability">—</div>
+        <div class="ai-card gauge-wrap">
+          <div class="gauge-ring" id="aiGaugeRing">
+            <div class="gauge-inner">
+              <div class="ai-big" id="aiProbability">—</div>
+              <div class="gauge-caption">SLIP PROBABILITY</div>
+            </div>
+          </div>
           <div class="ai-small" id="aiWindow">Prediction window: —</div>
           <div class="action-box" id="aiAction">—</div>
         </div>
@@ -342,9 +413,6 @@ async function fetchState(){
   renderAll();
 }
 
-// Matches the default SLOPESENSE_API_KEY in main.py. If you set a real key
-// via the SLOPESENSE_API_KEY environment variable on the server, update
-// this value to match, or the Reset button will get a 401 error.
 const API_KEY = 'demo-key-change-me';
 
 async function postJSON(path){
@@ -366,16 +434,43 @@ function renderStationList(){
     btn.className = 'station-btn' + (s.id === selectedId ? ' selected' : '');
     btn.onclick = () => { selectedId = s.id; renderAll(); };
     btn.innerHTML = `
-      <span class="station-dot" style="background:${c.color}"></span>
-      <span class="station-info">
-        <span class="station-name">${s.name}</span><br>
-        <span class="station-sub">${s.desc}</span>
-      </span>
-      <span class="station-badge" style="background:${c.bg};color:${c.color}">${s.level}</span>
+      <div class="station-top">
+        <span class="station-dot" style="background:${c.color}"></span>
+        <span class="station-info">
+          <span class="station-name">${s.name}</span><br>
+          <span class="station-sub">${s.desc}</span>
+        </span>
+        <span class="station-badge" style="background:${c.bg};color:${c.color}">${(s.risk*100).toFixed(0)}%</span>
+      </div>
+      <div class="station-bar"><div class="station-bar-fill" style="width:${(s.risk*100).toFixed(0)}%;background:${c.color}"></div></div>
     `;
     wrap.appendChild(btn);
   });
   document.getElementById('tickTag').textContent = 'tick ' + state.tick;
+}
+
+function metricCaption(type, val){
+  if(type === 'rain'){
+    if(val >= 100) return { text:'Breaches 100mm threshold', warn:true };
+    if(val >= 50)  return { text:'Elevated accumulation', warn:false };
+    return { text:'Within normal range', warn:false };
+  }
+  if(type === 'intensity'){
+    if(val >= 30) return { text:'Cloudburst pattern', warn:true };
+    if(val >= 15) return { text:'Heavy rainfall', warn:false };
+    return { text:'Light to moderate', warn:false };
+  }
+  if(type === 'moisture'){
+    if(val >= 90) return { text:'Near saturation', warn:true };
+    if(val >= 70) return { text:'Elevated moisture', warn:false };
+    return { text:'Stable', warn:false };
+  }
+}
+
+function setCaption(id, info){
+  const el = document.getElementById(id);
+  el.textContent = info.text;
+  el.classList.toggle('warn', info.warn);
 }
 
 function renderDetail(){
@@ -383,10 +478,14 @@ function renderDetail(){
   const c = RISK_COLORS[s.level];
 
   document.getElementById('detailName').textContent = s.name;
+  document.getElementById('detailCode').textContent = s.id;
   document.getElementById('detailSub').textContent = s.desc;
   document.getElementById('mRain72').textContent = s.rain72.toFixed(0);
   document.getElementById('mIntensity').textContent = s.intensity.toFixed(1);
   document.getElementById('mMoisture').textContent = s.moisture.toFixed(0);
+  setCaption('mRain72Cap', metricCaption('rain', s.rain72));
+  setCaption('mIntensityCap', metricCaption('intensity', s.intensity));
+  setCaption('mMoistureCap', metricCaption('moisture', s.moisture));
 
   const pill = document.getElementById('riskPill');
   pill.style.background = c.bg;
@@ -397,6 +496,8 @@ function renderDetail(){
 
 function renderAlerts(){
   const feed = document.getElementById('alertFeed');
+  const count = document.getElementById('alertCount');
+  count.textContent = state.alerts.length;
   if(state.alerts.length === 0){
     feed.innerHTML = '<div class="alert-empty">No alerts yet. Run a rainfall simulation to see the system trigger warnings.</div>';
     return;
@@ -415,14 +516,14 @@ function initChart(){
     type: 'line',
     data: { labels: [], datasets: [{
       label: 'Risk score', data: [],
-      borderColor: '#5aa39a', backgroundColor: 'rgba(90,163,154,0.12)',
+      borderColor: '#22c7d6', backgroundColor: 'rgba(34,199,214,0.12)',
       borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3,
     }]},
     options: {
       responsive: true, maintainAspectRatio: false, animation: { duration: 200 },
       scales: {
-        y: { min:0, max:1, ticks:{ color:'#93a0a8', callback:v=>(v*100)+'%' }, grid:{ color:'#333c43' } },
-        x: { ticks:{ color:'#93a0a8', maxTicksLimit:6 }, grid:{ display:false } }
+        y: { min:0, max:1, ticks:{ color:'#8291a0', callback:v=>(v*100)+'%' }, grid:{ color:'#262f3a' } },
+        x: { ticks:{ color:'#8291a0', maxTicksLimit:6 }, grid:{ display:false } }
       },
       plugins: { legend: { display:false } }
     }
@@ -445,6 +546,19 @@ function updateStatusBar(){
   document.getElementById('statusDot').style.background = c.color;
 }
 
+function updateTopStrip(){
+  const total = state.stations.length;
+  const crit = state.stations.filter(s => s.level === 'Critical').length;
+  const high = state.stations.filter(s => s.level === 'High').length;
+  const worst = state.stations.reduce((a,b) => b.risk > a.risk ? b : a);
+  const c = RISK_COLORS[worst.level];
+  document.getElementById('tsStations').textContent = total;
+  document.getElementById('tsCritical').textContent = crit;
+  document.getElementById('tsHigh').textContent = high;
+  document.getElementById('tsSystem').textContent = crit > 0 ? 'System — active warnings' : 'System online';
+  document.getElementById('tsDot').style.background = c.color;
+}
+
 function initMap(){
   riskMap = L.map('riskMap').setView([25.88, 91.90], 8);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap contributors'}).addTo(riskMap);
@@ -463,11 +577,29 @@ function renderMap(){
 function renderAI(){
   const s = getSelected();
   const c = RISK_COLORS[s.ai_level] || RISK_COLORS[s.level];
+
   document.getElementById('aiProbability').textContent = (s.ai_probability*100).toFixed(0) + '%';
-  document.getElementById('aiProbability').style.color = c.color;
+  const ring = document.getElementById('aiGaugeRing');
+  ring.style.setProperty('--pct', (s.ai_probability*100).toFixed(0));
+  ring.style.setProperty('--ring-color', c.color);
+
   document.getElementById('aiWindow').textContent = 'Prediction window: ' + s.prediction_window + ' · ' + s.ai_level + ' risk';
   document.getElementById('aiAction').textContent = 'Recommended action: ' + s.action;
-  document.getElementById('aiFactors').innerHTML = s.ai_factors.map(f => `<div class="factor"><span>${f.factor}</span><b>${f.impact >= 0 ? '+' : ''}${f.impact}</b></div>`).join('');
+
+  const maxAbs = Math.max(...s.ai_factors.map(f => Math.abs(f.impact)), 1);
+  document.getElementById('aiFactors').innerHTML = s.ai_factors.map(f => {
+    const pct = Math.min(100, (Math.abs(f.impact) / maxAbs) * 100);
+    const positive = f.impact >= 0;
+    return `
+      <div class="factor-row">
+        <div class="factor-top">
+          <span>${f.factor}</span>
+          <b class="${positive ? 'pos' : 'neg'}">${positive ? '+' : ''}${f.impact}</b>
+        </div>
+        <div class="factor-bar"><div class="factor-bar-fill ${positive ? 'pos' : 'neg'}" style="width:${pct}%"></div></div>
+      </div>
+    `;
+  }).join('');
 }
 
 function renderAll(){
@@ -478,6 +610,7 @@ function renderAll(){
   updateChart();
   renderAlerts();
   updateStatusBar();
+  updateTopStrip();
 }
 
 function toggleSim(){
@@ -501,11 +634,15 @@ async function resetAll(){
 
 document.getElementById('simBtn').addEventListener('click', toggleSim);
 document.getElementById('resetBtn').addEventListener('click', resetAll);
+document.getElementById('alertBtn').addEventListener('click', () => {
+  document.getElementById('alertFeed').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 
 initChart();
 initMap();
 fetchState().then(() => {
   document.getElementById('simBtn').disabled = false;
+  document.getElementById('alertBtn').disabled = false;
   document.getElementById('resetBtn').disabled = false;
 });
 </script>
